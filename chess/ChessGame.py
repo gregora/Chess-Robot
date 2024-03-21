@@ -1,23 +1,25 @@
 import chess
 import chess.engine
+import chess.uci
+
+import time
 
 import numpy as np
 
 
 class ChessGame:
 
-    def __init__(self) -> None:
+    def __init__(self):
             
         self.board = chess.Board()
 
-        self.engine = chess.engine.SimpleEngine.popen_uci("stockfish/stockfish-ubuntu-x86-64")
+        self.engine = chess.uci.popen_engine("/usr/games/stockfish")
 
         self.mask = np.zeros((8, 8))
         self.mask[0:2, :] = 1
         self.mask[6:8, :] = 2
 
     def __del__(self):
-        self.engine.close()
         self.board.clear()
 
 
@@ -45,7 +47,9 @@ class ChessGame:
         ### currently simulated, should get data from Alen
         mask = ChessGame.mask_from_board(self.board)
 
-        move = self.engine.play(self.board, chess.engine.Limit(time=0.01)).move
+        self.engine.position(self.board)
+
+        move, _ = self.engine.go(movetime = 100)
 
         mask[move.from_square // 8][move.from_square % 8] = 0
         mask[move.to_square // 8][move.to_square % 8] = 2
@@ -54,15 +58,19 @@ class ChessGame:
         return mask
 
 
-
+    @staticmethod
     def mask_from_board(board):
         mask = np.zeros((8, 8))
 
         for i in range(8):
             for j in range(8):
-                if board.color_at(i * 8 + j) == chess.WHITE:
+                
+                if board.piece_at(i * 8 + j) is None:
+                    continue
+                
+                if board.piece_at(i * 8 + j).color== chess.WHITE:
                     mask[i][j] = 1
-                elif board.color_at(i * 8 + j) == chess.BLACK:
+                elif board.piece_at(i * 8 + j).color == chess.BLACK:
                     mask[i][j] = 2
 
         return mask
@@ -77,8 +85,9 @@ class ChessGame:
             
             # WHITE - COMPUTER
             print("WHITE PLAYS - COMPUTER")
-            result = self.engine.play(self.board, chess.engine.Limit(time=engine_time))
-            self.board.push(result.move)
+            self.engine.position(self.board)
+            move, _ = self.engine.go()
+            self.board.push(move)
             print(self.board)
             print()
 
